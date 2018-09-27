@@ -3,7 +3,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 import sys
 #command-line arguments
-assert len(sys.argv) >= 2, "Please specify 1.[dqn,double,dueling]"
+assert len(sys.argv) >= 3, "Please specify 1.[dqn,double,dueling], 2.reward-fileName"
+result_file=sys.argv[2]
 
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -69,7 +70,7 @@ class ReplayBuffer():
 			return batch_sample
 
 class dqn():
-	def __init__(self,obs_shape,num_actions,q_func_model,scope='dqn',reuse=False,gamma=1.0):
+	def __init__(self,obs_shape,num_actions,q_func_model,scope='dqn',reuse=False,gamma=1.0,grad_clip_value=1.0):
 		with tf.variable_scope(scope, reuse=reuse):
 			#placeholders for inputs
 			self.obs_in = tf.placeholder(shape=obs_shape, dtype=tf.float32, name="observation")
@@ -93,7 +94,14 @@ class dqn():
 			self.td_error = tf.square(self.q_val - tf.stop_gradient(self.q_val_selected_target))
 			self.loss = tf.reduce_mean(self.td_error)
 			self.optimizer = tf.train.AdamOptimizer(learning_rate=0.0001)
-			self.optimize_expr = self.optimizer.minimize(self.loss, var_list=self.q_func_vars)		
+			if not grad_clip_value:
+				self.optimize_expr = self.optimizer.minimize(self.loss, var_list=self.q_func_vars)		
+			else:
+				gradients = self.optimizer.compute_gradients(self.loss, var_list=self.q_func_vars)
+				for i, (grad, var) in enumerate(gradients):
+					if grad is not None:
+						gradients[i] = (tf.clip_by_norm(grad, grad_clip_value), var)  #clipping value = 1.0
+				self.optimize_expr = self.optimizer.apply_gradients(gradients)
 
 			#target network update
 			self.update_target_expr = []
@@ -105,13 +113,14 @@ class dqn():
 #some global variables
 num_cpu=4
 max_buffer_size = 50000
-batch_size = 32
+batch_size = 64
 target_net_upd_steps = 1000
+recursive = False
 
 def model(inpt, num_actions, scope, reuse=False):
 	with tf.variable_scope(scope, reuse=reuse):
 		out = inpt
-		out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)
+		out = layers.fully_connected(out, num_outputs=128, activation_fn=tf.nn.tanh)
 		out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
 		return out
 
@@ -134,8 +143,9 @@ if __name__ == '__main__':
 		sess.run(tf.global_variables_initializer())
 
 		#create a buffer for the environment
-		replay_buffer = ReplayBuffer(batch_size*2, 50000)
+		replay_buffer = ReplayBuffer(batch_size*2, 50000, recursive=recursive)
 		episode_reward = []
+		episode = []
 		episode_reward.append(0)
 		exploration_steps = 50000
 
@@ -153,15 +163,18 @@ if __name__ == '__main__':
 			replay_buffer.add(data_tuple=data_tuple)
 			obs = obs_p
 
-			if t>50000 and np.mean(episode_reward[-101:-1]) > 200:
+			if t>50000 and np.mean(episode_reward[-101:-1]) > 500:
 				env.render()
 
 			if done:
 				obs = env.reset()
 				#episode finished
 				if len(episode_reward) % 10 == 0:
-					print ("exploration:{}\t\tmean episode reward:{}".format(exploration, round(np.mean(episode_reward[-101:-1]), 1)))
+					print ("#:{}\texploration:{}\t\tmean episode reward:{}".format(len(episode_reward), exploration, round(np.mean(episode_reward[-101:-1]), 1)))
 					# print ("mean episode reward:{}".format(round(np.mean(episode_reward[-101:-1]), 1)))
+				if len(episode_reward) % 100 == 0:
+					np.savetxt(result_file, np.array(episode_reward))
+					# exit(0)
 				episode_reward.append(0)
 
 			# training
