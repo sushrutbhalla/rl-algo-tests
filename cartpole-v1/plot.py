@@ -51,32 +51,36 @@ def plot_cumulative_reward(avg_cumulative_reward, legend, title, filename, avg_r
     plt.show()
 
 #read result file
-assert len(sys.argv) >=2, "missing filename"
+assert len(sys.argv) >=3, "missing filename"
 file_name = sys.argv[1]
+file_name2 = sys.argv[2]
 
 records = np.genfromtxt(file_name, delimiter=',')
-cumulative_rewards = records[:]
+cumulative_rewards = records[:1500]
+records2 = np.genfromtxt(file_name2, delimiter=',')
+cumulative_rewards2 = records2[:1500]
 
 plot_legend = []
 plot_legend.append('DQN on Cartpole-v1')
+plot_legend.append('DQN on Cartpole-v1 w/ Gradient Clip')
 
 ############################################################
 #plot results
 
-plot_filename = 'dqn_cartpole.png'
+plot_filename = 'dqn_cartpole_comp.png'
 plot_title = "DQN: Original Cumulative Reward"
-plot_cumulative_reward([cumulative_rewards],
+plot_cumulative_reward([cumulative_rewards, cumulative_rewards2],
   plot_legend, plot_title, plot_filename, avg_rew=False, use_ax_limit=False)
 
 #plot smoothed curves
 smooth_low=10
 smooth_high=40
-plot_filename = 'dqn_cartpole_smooth_10.png'
+plot_filename = 'dqn_cartpole_smooth_10_comp.png'
 plot_title = "DQN: Smooth(n={}) Cumulative Reward".format(smooth_low)
-plot_cumulative_reward([cumulative_rewards],
+plot_cumulative_reward([cumulative_rewards, cumulative_rewards2],
   plot_legend, plot_title, plot_filename, n=smooth_low, avg_rew=False, smooth=True, use_ax_limit=False)
 
-plot_filename = 'dqn_cartpole_smooth_40.png'
+plot_filename = 'dqn_cartpole_smooth_40_comp.png'
 plot_title = "DQN: Smooth(n={}) Cumulative Reward".format(smooth_high)
-plot_cumulative_reward([cumulative_rewards],
+plot_cumulative_reward([cumulative_rewards, cumulative_rewards2],
   plot_legend, plot_title, plot_filename, n=smooth_high, avg_rew=False, smooth=True, use_ax_limit=False)

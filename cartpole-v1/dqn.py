@@ -193,10 +193,14 @@ if __name__ == '__main__':
 				after = sess.run(tf.trainable_variables())
 				for idx in range(len(after)//2):
 					a, b = after[idx], before[idx]
-					assert (b != a).any(), "variables are equal:{},{}".format(b, a)
+					# assert (b != a).any(), "variables are equal:{},{}".format(b, a)
+					if not (b != a).any():
+						print ("---------------------------- variables are equal:{},{}".format(b, a))
 				for idx in range(len(after)//2,len(after)):
 					a, b = after[idx], before[idx]
-					assert (b == a).all(), "variables are not equal:{},{}".format(b, a)
+					# assert (b == a).all(), "variables are not equal:{},{}".format(b, a)
+					if not (b == a).all():
+						print ("---------------------------- variables are not equal:{},{}".format(b, a))
 
 			#update target network
 			if t>1000 and t % target_net_upd_steps == 0:
